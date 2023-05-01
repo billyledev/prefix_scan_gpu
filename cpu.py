@@ -7,6 +7,16 @@ RANDOM_SEED = 123
 
 np.random.seed(RANDOM_SEED) # Set the RNG seed for tests
 
+# Find the next power of 2
+def next_power(target):
+  if target > 1:
+    for i in range(1, int(target)):
+      if (2**i >= target):
+        return 2**i
+  else:
+    return 1
+
+# Up-sweep algorithm implementation
 def up_sweep(a: np.ndarray[np.int32], verbose: bool) -> np.ndarray[np.int32]:
   n = a.size
   m = round(math.log2(n))
@@ -18,6 +28,7 @@ def up_sweep(a: np.ndarray[np.int32], verbose: bool) -> np.ndarray[np.int32]:
 
   return a
 
+# Down-sweep algorithm implementation
 def down_sweep(a: np.ndarray[np.int32], verbose: bool) -> np.ndarray[np.int32]:
   n = a.size
   m = round(math.log2(n))
@@ -54,19 +65,19 @@ def scan_cpu(array: np.ndarray[np.int32], verbose: bool, inclusive: bool) -> np.
   down_sweep(a, verbose)
   if verbose: print("Down-sweep phase ended")
 
-  # Crop the result if necessary
-  if n != 2**m:
-    a = a[:n]
-  
   # Inclusive mode
   if inclusive:
     a = a[1:]
     a = np.append(a, a[-1] + array[-1])
 
+  # Crop the result if necessary
+  if n != 2**m:
+    a = a[:n]
+
   return a
 
 def main(args) -> int:
-  array = np.array([0, 1, 2, 3], dtype=np.int32)
+  array = np.array([0, 1, 2, 3, 4], dtype=np.int32)
   print(f"Input array: {array}")
   result = scan_cpu(array, args.verbose, args.inclusive)
   print(f"Result array: {result}")
