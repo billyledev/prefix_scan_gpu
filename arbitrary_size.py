@@ -1,9 +1,11 @@
 import sys
 import argparse
+import warnings
 import math
 import numpy as np
-from numba import cuda
+from numba import cuda, NumbaPerformanceWarning
 
+warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 RANDOM_SEED = 123
 MAX_THREADS_PER_BLOCK = 1024
 
