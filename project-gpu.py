@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 
 
 
-# ================== SCAN CPU RELATED CODE ===================
+# ========================= HELPERS ==========================
 
 # Find the next power of 2
 def next_power(target):
@@ -23,6 +23,18 @@ def next_power(target):
         return 2**i
   else:
     return 1
+
+# Update the array for inclusive scans
+def perform_inclusive(original, result):
+  result = result[1:]
+  result = np.append(result, result[-1] + original[-1])
+  return result
+
+# ============================================================
+
+
+
+# ================== SCAN CPU RELATED CODE ===================
 
 # Up-sweep algorithm implementation
 def up_sweep(a):
@@ -50,7 +62,7 @@ def down_sweep(a):
   return a
 
 # Prefix scan CPU implementation
-def scan_cpu(array):
+def scan_cpu(array, inclusive):
   n = array.size
   m = round(math.log2(n))
 
@@ -58,7 +70,7 @@ def scan_cpu(array):
   if n != 2**m:
     pad_size = next_power(array.size)**2-array.size
     print(f"Padding size : {pad_size}")
-    array = np.pad(array, (0,pad_size), 'constant', constant_values=0)
+    array = np.pad(array, (0, pad_size), 'constant', constant_values=0)
   
   # Copy the array to preserve original values
   a = np.copy(array)
@@ -67,9 +79,12 @@ def scan_cpu(array):
   up_sweep(a)
   down_sweep(a)
 
+  # Inclusive mode
+  if inclusive: a = perform_inclusive(array, a)
+
   # Crop the result if necessary
   if n != 2**m:
-    return a[:n]
+    a = a[:n]
 
   return a
 
@@ -129,7 +144,7 @@ def scan_kernel(a):
 
   a[i] = shared_array[tid]
 
-def scan_gpu(array, threads_per_block):
+def scan_gpu(array, threads_per_block, inclusive):
   n = array.size
   blocks = math.ceil(n / threads_per_block)
   print(f"Number of blocks : {blocks}, number of threads per block: {threads_per_block}, total threads: {blocks*threads_per_block}")
@@ -139,7 +154,10 @@ def scan_gpu(array, threads_per_block):
   scan_kernel[blocks, threads_per_block](device_array)
 
   result = device_array.copy_to_host()
-  if blocks == 1: return result
+  if blocks == 1:
+    # Inclusive mode
+    if inclusive: result = perform_inclusive(array, result)
+    return result
   
   sums = build_sums(array, blocks, threads_per_block)
 
@@ -147,6 +165,8 @@ def scan_gpu(array, threads_per_block):
   add_sums[blocks, threads_per_block](device_sums, device_array)
 
   result = device_array.copy_to_host()
+  # Inclusive mode
+  if inclusive: result = perform_inclusive(array, result)
   return result
 
 # ============================================================
@@ -165,7 +185,14 @@ def output(array):
   print(",".join(str(value) for value in array))
 
 def main(args):
-  output(load_array(args.inputFile))
+  array = load_array(args.inputFile)
+
+  if args.cpu:
+    result = scan_cpu(array, args.inclusive)
+  else:
+    result = scan_gpu(array, args.tb, args.inclusive)
+
+  output(result)
   return 0
 
 
@@ -177,9 +204,9 @@ if __name__ == "__main__":
     description="Prefix scan GPU implementation"
   )
   parser.add_argument("inputFile")
-  parser.add_argument("--tb")
+  parser.add_argument("--tb", type=int, default=1)
   parser.add_argument("--cpu", action="store_true")
-  parser.add_argument("--independant", action="store_true")
+  parser.add_argument("--independent", action="store_true")
   parser.add_argument("--inclusive", action="store_true")
 
   args = parser.parse_args()
