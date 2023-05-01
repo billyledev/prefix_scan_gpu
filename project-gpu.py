@@ -144,8 +144,11 @@ def scan_kernel(a):
 
   a[i] = shared_array[tid]
 
-def scan_gpu(array, threads_per_block, inclusive):
+def scan_gpu(array, threads_per_block, independent, inclusive):
   n = array.size
+  # Set the number of threads per block if it wasn't set in command line arguments
+  if threads_per_block == 0: threads_per_block = n if n <= MAX_THREADS_PER_BLOCK else MAX_THREADS_PER_BLOCK
+
   blocks = math.ceil(n / threads_per_block)
   print(f"Number of blocks : {blocks}, number of threads per block: {threads_per_block}, total threads: {blocks*threads_per_block}")
 
@@ -159,6 +162,9 @@ def scan_gpu(array, threads_per_block, inclusive):
     if inclusive: result = perform_inclusive(array, result)
     return result
   
+  # Return the scans result if independent param is set
+  if independent: return result
+
   sums = build_sums(array, blocks, threads_per_block)
 
   device_sums = cuda.to_device(sums)
@@ -190,7 +196,7 @@ def main(args):
   if args.cpu:
     result = scan_cpu(array, args.inclusive)
   else:
-    result = scan_gpu(array, args.tb, args.inclusive)
+    result = scan_gpu(array, args.tb, args.independent, args.inclusive)
 
   output(result)
   return 0
@@ -204,10 +210,10 @@ if __name__ == "__main__":
     description="Prefix scan GPU implementation"
   )
   parser.add_argument("inputFile")
-  parser.add_argument("--tb", type=int, default=1)
-  parser.add_argument("--cpu", action="store_true")
-  parser.add_argument("--independent", action="store_true")
-  parser.add_argument("--inclusive", action="store_true")
+  parser.add_argument("--tb", type=int, default=0)
+  parser.add_argument("--cpu", action="store_true", default=False)
+  parser.add_argument("--independent", action="store_true", default=False)
+  parser.add_argument("--inclusive", action="store_true", default=False)
 
   args = parser.parse_args()
   res = main(args)
