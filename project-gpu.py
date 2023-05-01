@@ -69,7 +69,6 @@ def scan_cpu(array, inclusive):
   # Pad with 0 to the next power of 2 if necessary
   if n != 2**m:
     pad_size = next_power(array.size)**2-array.size
-    print(f"Padding size : {pad_size}")
     array = np.pad(array, (0, pad_size), 'constant', constant_values=0)
   
   # Copy the array to preserve original values
@@ -150,7 +149,6 @@ def scan_gpu(array, threads_per_block, independent, inclusive):
   if threads_per_block == 0: threads_per_block = n if n <= MAX_THREADS_PER_BLOCK else MAX_THREADS_PER_BLOCK
 
   blocks = math.ceil(n / threads_per_block)
-  print(f"Number of blocks : {blocks}, number of threads per block: {threads_per_block}, total threads: {blocks*threads_per_block}")
 
   device_array = cuda.to_device(array)
 
