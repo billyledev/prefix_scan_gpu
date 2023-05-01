@@ -12,6 +12,73 @@ MAX_THREADS_PER_BLOCK = 1024
 warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 
 
+
+# ================== SCAN CPU RELATED CODE ===================
+
+# Find the next power of 2
+def next_power(target):
+  if target > 1:
+    for i in range(1, int(target)):
+      if (2**i >= target):
+        return 2**i
+  else:
+    return 1
+
+# Up-sweep algorithm implementation
+def up_sweep(a):
+  n = a.size
+  m = round(math.log2(n))
+
+  for d in range(0, m-1):
+    for k in range(0, n-1, 2**(d+1)):
+      a[k+2**(d+1)-1] += a[k+2**d-1]
+
+  return a
+
+# Down-sweep algorithm implementation
+def down_sweep(a):
+  n = a.size
+  m = round(math.log2(n))
+  a[n-1] = 0
+
+  for d in range(m-1, -1, -1):
+    for k in range(0, n-1, 2**(d+1)):
+      t = a[k+2**d-1]
+      a[k+2**d-1] = a[k+2**(d+1)-1]
+      a[k+2**(d+1)-1] += t
+
+  return a
+
+# Prefix scan CPU implementation
+def scan_cpu(array):
+  n = array.size
+  m = round(math.log2(n))
+
+  # Pad with 0 to the next power of 2 if necessary
+  if n != 2**m:
+    pad_size = next_power(array.size)**2-array.size
+    print(f"Padding size : {pad_size}")
+    array = np.pad(array, (0,pad_size), 'constant', constant_values=0)
+  
+  # Copy the array to preserve original values
+  a = np.copy(array)
+
+  # Perform up-sweep and down-sweep phases
+  up_sweep(a)
+  down_sweep(a)
+
+  # Crop the result if necessary
+  if n != 2**m:
+    return a[:n]
+
+  return a
+
+# ============================================================
+
+
+
+# ================== SCAN GPU RELATED CODE ===================
+
 def build_sums(array, blocks, threads_per_block):
   sums = [0]
 
@@ -82,6 +149,8 @@ def scan_gpu(array, threads_per_block):
   result = device_array.copy_to_host()
   return result
 
+# ============================================================
+
 
 
 # Load and return an aray from a file (comma-separated values)
@@ -101,6 +170,7 @@ def main(args):
 
 
 
+# Program entrypoint
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(
     prog="project-gpu.py",
@@ -108,6 +178,7 @@ if __name__ == "__main__":
   )
   parser.add_argument("inputFile")
   parser.add_argument("--tb")
+  parser.add_argument("--cpu", action="store_true")
   parser.add_argument("--independant", action="store_true")
   parser.add_argument("--inclusive", action="store_true")
 
