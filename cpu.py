@@ -33,32 +33,42 @@ def down_sweep(a: np.ndarray[np.int32], verbose: bool) -> np.ndarray[np.int32]:
 
   return a
 
-def scan_cpu(array: np.ndarray[np.int32], verbose: bool) -> np.ndarray[np.int32]:
+# Prefix scan CPU implementation
+def scan_cpu(array: np.ndarray[np.int32], verbose: bool, inclusive: bool) -> np.ndarray[np.int32]:
   n = array.size
   m = round(math.log2(n))
 
+  # Pad with 0 to the next power of 2 if necessary
   if n != 2**m:
-    array = np.pad(array, (0,8-array.size), 'constant', constant_values=0)
+    pad_size = next_power(array.size)**2-array.size
+    if verbose: print(f"Padding size : {pad_size}")
+    array = np.pad(array, (0, pad_size), 'constant', constant_values=0)
   
-  a = np.copy(array) # Copy the array to preserve original values
+  # Copy the array to preserve original values
+  a = np.copy(array)
 
+  # Perform up-sweep and down-sweep phases
   if verbose: print("Starting up-sweep phase")
   up_sweep(a, verbose)
   if verbose: print("Up-sweep phase ended, starting down-sweep phase")
   down_sweep(a, verbose)
   if verbose: print("Down-sweep phase ended")
 
+  # Crop the result if necessary
   if n != 2**m:
-    return a[:n]
+    a = a[:n]
+  
+  # Inclusive mode
+  if inclusive:
+    a = a[1:]
+    a = np.append(a, a[-1] + array[-1])
+
   return a
 
-def main(verbose: bool) -> int:
-  # array = np.array([2, 3, 4, 6], dtype=np.int32)
-  # array = np.random.randint(-100, 100, 6, dtype=np.int32)
-  # array = np.array([1,2,3], dtype=np.int32)
-  array = np.array([0, 1, 2, 3, 4], dtype=np.int32)
+def main(args) -> int:
+  array = np.array([0, 1, 2, 3], dtype=np.int32)
   print(f"Input array: {array}")
-  result = scan_cpu(array, verbose)
+  result = scan_cpu(array, args.verbose, args.inclusive)
   print(f"Result array: {result}")
 
   return 0
@@ -69,6 +79,7 @@ if __name__ == '__main__':
     description="CPU version of exclusive prefix scan implementation"
   )
   parser.add_argument("-v", "--verbose", action="store_true")
+  parser.add_argument("--inclusive", action="store_true")
   args = parser.parse_args()
 
-  sys.exit(main(args.verbose))
+  sys.exit(main(args))
