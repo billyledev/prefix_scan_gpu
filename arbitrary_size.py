@@ -19,7 +19,12 @@ def build_sums(array, blocks, threads_per_block):
 
 @cuda.jit
 def add_sums(sums, array):
-  pass
+  tid = cuda.threadIdx.x
+  bdim = cuda.blockDim.x
+  bid = cuda.blockIdx.x
+  i = bid * bdim + tid
+
+  array[i] += sums[bid]
 
 @cuda.jit
 def scan_kernel(a):
